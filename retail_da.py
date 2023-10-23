@@ -107,17 +107,17 @@ class Retail:
         # AvgMonetary
         avg_monetary = self.retail_relevant.groupby('Customer ID')['TotalPrice'].mean().reset_index()
         avg_monetary.columns = ['Customer ID', 'AvgMonetary']
-        # Merge the three dfs into a new df, self.self.rfm_df
-        self.self.rfm_df = recency_df.merge(frequency_df, on='Customer ID')
-        self.self.rfm_df = self.self.rfm_df.merge(monetary_df, on='Customer ID')
-        self.self.rfm_df = self.self.rfm_df.merge(avg_monetary, on='Customer ID')
-        self.self.rfm_df.drop('InvoiceDate', axis=1, inplace=True)
+        # Merge the three dfs into a new df, self.rfm_df
+        self.rfm_df = recency_df.merge(frequency_df, on='Customer ID')
+        self.rfm_df = self.rfm_df.merge(monetary_df, on='Customer ID')
+        self.rfm_df = self.rfm_df.merge(avg_monetary, on='Customer ID')
+        self.rfm_df.drop('InvoiceDate', axis=1, inplace=True)
         # Calculate Churn Rate and CLTV
-        self.repeat_rate = self.self.rfm_df[self.self.rfm_df['Frequency'] > 1].shape[0] / self.self.rfm_df.shape[0]
+        self.repeat_rate = self.rfm_df[self.rfm_df['Frequency'] > 1].shape[0] / self.rfm_df.shape[0]
         print(f'Repeat rate: {self.repeat_rate}')
         self.churn_rate = 1 - repeat_rate
         print(f'Churn rate: {churn_rate}')
-        self.self.rfm_df['CLTV'] = self.self.rfm_df['AvgMonetary'] * self.self.rfm_df['Frequency'] / self.churn_rate
+        self.rfm_df['CLTV'] = self.rfm_df['AvgMonetary'] * self.rfm_df['Frequency'] / self.churn_rate
 
         # Normalize the RFM df
         self.rfm_df_norm = self.rfm_df.copy(deep=False)
@@ -175,3 +175,56 @@ class Retail:
         print(f'Most popular product: {most_pop_pord_desc}')
         print(f'Least popular product: {least_pop_pord_desc}')
         print(f'Most returned product: {most_ret_pord_desc}')
+        
+    def eval_models(self):
+        print('Evaluation of models for KMeans clustering')
+        train_eval_model_cluster(self.rfm_kmeans, 'linear')
+        train_eval_model_cluster(self.rfm_kmeans, 'random_forest')
+        train_eval_model_cluster(self.rfm_kmeans, 'decision_tree')
+        print('Evaluation of models for Hierarchical clustering')
+        train_eval_model_cluster(self.rfm_hierarchical, 'linear')
+        train_eval_model_cluster(self.rfm_hierarchical, 'random_forest')
+        train_eval_model_cluster(self.rfm_hierarchical, 'decision_tree')
+        print('Evaluation of models for Agglomerative clustering')
+        train_eval_model_cluster(self.rfm_agglomerative, 'linear')
+        train_eval_model_cluster(self.rfm_agglomerative, 'random_forest')
+        train_eval_model_cluster(self.rfm_agglomerative, 'decision_tree')
+        
+    def eval_linear(self):
+        print('Evaluation of feeding entire dataset to linear regression model')
+        X = self.rfm_df_norm[['Recency', 'Frequency', 'AvgMonetary']]
+        y = self.rfm_df_norm['CLTV']
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
+
+        model = LinearRegression()
+        model.fit(X_train, y_train)
+
+        y_pred = model.predict(X_test)
+        print(f'MSE: {mean_squared_error(y_test, y_pred)}')
+        print(f'Model Score: {model.score(X_test, y_test)}')
+
+    def eval_random_forest(self):
+        print('Evaluation of feeding entire dataset to random forest regression model')
+        X = self.rfm_df_norm[['Recency', 'Frequency', 'AvgMonetary']]
+        y = self.rfm_df_norm['CLTV']
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
+
+        model = RandomForestRegressor(n_estimators=100, random_state=0)
+        model.fit(X_train, y_train)
+
+        y_pred = model.predict(X_test)
+        print(f'MSE: {mean_squared_error(y_test, y_pred)}')
+        print(f'Model Score: {model.score(X_test, y_test)}')
+
+    def eval_decision_tree(self):
+        print('Evaluation of feeding entire dataset to decision tree regression model')
+        X = self.rfm_df_norm[['Recency', 'Frequency', 'AvgMonetary']]
+        y = self.rfm_df_norm['CLTV']
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
+
+        model = DecisionTreeRegressor(random_state=0)
+        model.fit(X_train, y_train)
+
+        y_pred = model.predict(X_test)
+        print(f'MSE: {mean_squared_error(y_test, y_pred)}')
+        print(f'Model Score: {model.score(X_test, y_test)}')
